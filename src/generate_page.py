@@ -1,62 +1,48 @@
 import os
-import shutil
-from markdown_blocks import *
-from htmlnode import *
+from pathlib import Path
+from markdown_blocks import markdown_to_html_node
 
-def generate_page(from_path, template_path, dest_path):
-    print(f"Generating page from {from_path} to {dest_path} using {template_path}")
-    with open(from_path) as f:
-        read_markdown = f.read()
-    with open(template_path) as f:
-        read_template = f.read()
-    html_node = markdown_to_html_node(read_markdown)
-    html = html_node.to_html()
-    title = extract_title(read_markdown)
-    read_template = read_template.replace("{{ Title }}",title)
-    new_template = read_template.replace("{{ Content }}",html)
-    new_dirs = os.path.dirname(dest_path)
-    if not os.path.exists(new_dirs):
-        os.makedirs(new_dirs)
-    with open(dest_path,"w") as new_f:
-        new_f.write(new_template)
-        new_f.close()
-    
 
-def generate_pages_recursive(dir_path_content, template_path, dest_dir_path,basepath="/"):
-    content_list = os.listdir(dir_path_content)
-    for content in content_list:
-        content_path = os.path.join(dir_path_content,content)
-        if os.path.isfile(content_path):
-            template_file = open(template_path, "r")
-            template = template_file.read()
-            template_file.close()
-            markdown_file = open(content_path,"r")
-            markdown = markdown_file.read()
-            markdown_file.close()
-            html_node = markdown_to_html_node(markdown)
-            html = html_node.to_html()
-            title = extract_title(markdown)
-            template = template.replace("{{ Title }}",title)
-            template = template.replace("{{ Content }}",html)
-            template = template.replace('href="/',f'href="{basepath}')
-            new_template = template.replace('src="/',f'src="{basepath}')
-            name = os.path.splitext(content)
-            filename = f"{name[0]}.html"
-            dest_content_name_path = os.path.join(dest_dir_path,filename)
-            with open(dest_content_name_path,"w") as new_f:
-                new_f.write(new_template)
-                new_f.close()
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path, basepath):
+    for filename in os.listdir(dir_path_content):
+        from_path = os.path.join(dir_path_content, filename)
+        dest_path = os.path.join(dest_dir_path, filename)
+        if os.path.isfile(from_path):
+            dest_path = Path(dest_path).with_suffix(".html")
+            generate_page(from_path, template_path, dest_path, basepath)
         else:
-            public_dirs = os.path.join(dest_dir_path,content)
-            if not os.path.exists(public_dirs):
-                os.makedirs(public_dirs,exist_ok=True)
-            generate_pages_recursive(content_path,template_path,public_dirs)
-            
-
-"""        filename = os.path.splitext(content)
-        filename = str.join(filename[0],".html")
-        dest_content_name = os.path.join(dest_content_path,filename)
-"""
+            generate_pages_recursive(from_path, template_path, dest_path, basepath)
 
 
-generate_pages_recursive("content","template.html","public")
+def generate_page(from_path, template_path, dest_path, basepath):
+    print(f" * {from_path} {template_path} -> {dest_path}")
+    from_file = open(from_path, "r")
+    markdown_content = from_file.read()
+    from_file.close()
+
+    template_file = open(template_path, "r")
+    template = template_file.read()
+    template_file.close()
+
+    node = markdown_to_html_node(markdown_content)
+    html = node.to_html()
+
+    title = extract_title(markdown_content)
+    template = template.replace("{{ Title }}", title)
+    template = template.replace("{{ Content }}", html)
+    template = template.replace('href="/', 'href="' + basepath)
+    template = template.replace('src="/', 'src="' + basepath)
+
+    dest_dir_path = os.path.dirname(dest_path)
+    if dest_dir_path != "":
+        os.makedirs(dest_dir_path, exist_ok=True)
+    to_file = open(dest_path, "w")
+    to_file.write(template)
+
+
+def extract_title(md):
+    lines = md.split("\n")
+    for line in lines:
+        if line.startswith("# "):
+            return line[2:]
+    raise ValueError("no title found")
