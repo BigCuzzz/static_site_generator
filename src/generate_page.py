@@ -22,13 +22,11 @@ def generate_page(from_path, template_path, dest_path):
         new_f.close()
     
 
-def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path,basepath="/"):
     content_list = os.listdir(dir_path_content)
     for content in content_list:
         content_path = os.path.join(dir_path_content,content)
-        dest_content_path = os.path.join(dest_dir_path,content)
         if os.path.isfile(content_path):
-            print("content path:   ", content_path)
             template_file = open(template_path, "r")
             template = template_file.read()
             template_file.close()
@@ -39,18 +37,17 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
             html = html_node.to_html()
             title = extract_title(markdown)
             template = template.replace("{{ Title }}",title)
-            new_template = template.replace("{{ Content }}",html)
+            template = template.replace("{{ Content }}",html)
+            template = template.replace('href="/',f'href="{basepath}')
+            new_template = template.replace('src="/',f'src="{basepath}')
             name = os.path.splitext(content)
             filename = f"{name[0]}.html"
-            print("FILENAME!!!!  ",filename)
             dest_content_name_path = os.path.join(dest_dir_path,filename)
             with open(dest_content_name_path,"w") as new_f:
                 new_f.write(new_template)
                 new_f.close()
         else:
             public_dirs = os.path.join(dest_dir_path,content)
-            print("DIRS!!!")
-            print(content)
             if not os.path.exists(public_dirs):
                 os.makedirs(public_dirs,exist_ok=True)
             generate_pages_recursive(content_path,template_path,public_dirs)
